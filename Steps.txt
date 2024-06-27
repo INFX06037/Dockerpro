@@ -1,0 +1,33 @@
+node{
+   stage('SCM Checkout'){
+     git 'https://github.com/INFX06037/Dockerpro.git'
+   }
+
+   stage('Docker Login'){
+   withCredentials([string(credentialsId: 'dockerpass', variable: 'dockerPassword')]) {
+   sh "docker login -u infx06037 -p ${dockerPassword}"
+    }
+   sh "docker pull infx06037/mario:latest"
+   }
+   stage('Remove Previous Container'){
+	try{
+		sh 'docker rm -f tomcattest'
+	}catch(error){
+		//  do nothing if there is an exception
+	}
+   stage('Docker deployment'){
+   sh 'docker run -d -p 90:80 --name tomcattest infx06037/mario:latest' 
+   }
+    stage('Image push into ECR') {
+        withCredentials([string(credentialsId: 'myaccesskey', variable: 'AWS_ACCESS_KEY_ID'), string(credentialsId: 'mysecretaccesskey', variable: 'AWS_SECRET_ACCESS_KEY')]) {
+            script {
+                def ecrLogin = sh(script: "aws ecr get-login-password --region ap-south-1", returnStdout: true).trim()
+                def dockerCommand = "docker login --username AWS --password-stdin 637423572131.dkr.ecr.ap-south-1.amazonaws.com"
+                sh "echo '${ecrLogin}' | ${dockerCommand}"
+                sh 'docker tag infx06037/mario:latest 637423572131.dkr.ecr.ap-south-1.amazonaws.com/fita-app:latest'
+                sh 'docker push 637423572131.dkr.ecr.ap-south-1.amazonaws.com/fita-app:latest'
+            }
+        }    
+    }    
+}
+}
